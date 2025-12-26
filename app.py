@@ -53,26 +53,38 @@ st.markdown("""
 @st.cache_resource
 def get_db():
     try:
-        # التأكد من عدم تهيئة التطبيق مرتين
         if not firebase_admin._apps:
-            # 1. محاولة القراءة من أسرار السحابة (Streamlit Secrets)
+            # 1. القراءة من السحابة (Streamlit Cloud)
             if "firestore" in st.secrets:
-                # تحويل إعدادات الـ secrets إلى Dictionary
-                key_dict = dict(st.secrets["firestore"])
-                # إصلاح مشكلة السطور الجديدة في المفتاح الخاص (Private Key Fix)
-                if "private_key" in key_dict:
-                    key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
+                # إنشاء القاموس يدوياً لضمان عدم وجود بيانات زائدة أو ناقصة
+                secrets_dict = st.secrets["firestore"]
+                key_dict = {
+                    "type": secrets_dict["type"],
+                    "project_id": secrets_dict["project_id"],
+                    "private_key_id": secrets_dict["private_key_id"],
+                    "private_key": secrets_dict["private_key"],
+                    "client_email": secrets_dict["client_email"],
+                    "client_id": secrets_dict["client_id"],
+                    "auth_uri": secrets_dict["auth_uri"],
+                    "token_uri": secrets_dict["token_uri"],
+                    "auth_provider_x509_cert_url": secrets_dict["auth_provider_x509_cert_url"],
+                    "client_x509_cert_url": secrets_dict["client_x509_cert_url"],
+                }
+
+                # === الخطوة الحاسمة: إصلاح المفتاح ===
+                # استبدال أي \\n (حرفين) بـ \n (سطر جديد حقيقي)
+                key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
                 
                 cred = credentials.Certificate(key_dict)
             
-            # 2. إذا لم نجدها، نحاول القراءة من الملف المحلي (Localhost)
+            # 2. القراءة من الجهاز المحلي (Localhost)
             else:
                 cred = credentials.Certificate("firestore_key.json")
                 
             firebase_admin.initialize_app(cred)
         return firestore.client()
     except Exception as e:
-        st.error(f"⚠️ Connection Error: {e}")
+        st.error(f"⚠️ خطأ فادح في الاتصال: {e}")
         st.stop()
 
 db = get_db()
